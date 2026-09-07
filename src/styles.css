@@ -324,3 +324,7 @@ body[data-outcome="win"] .ship-caption{border-bottom:1px solid #52685f66;color:#
  .welcome .voyage-facts{margin:8px 0 15px;gap:22px;font-size:9px}.welcome .voyage-facts b{font-size:17px;margin-right:4px}
  .welcome .voyage-help{font-size:10px;line-height:1.55;margin-bottom:0}.welcome .guide-choice{margin-top:8px!important}
 }
+
+/* Support links use the existing feedback bar on every game screen. */
+.support-links{display:flex;flex-wrap:wrap;gap:20px;align-items:center}.support-links a{display:inline-flex;align-items:center;min-height:44px;min-width:44px;text-decoration:underline;text-underline-offset:4px}
+@media(max-width:760px){.support-links{flex-basis:100%}}
