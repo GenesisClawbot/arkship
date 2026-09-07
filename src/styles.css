@@ -312,3 +312,15 @@ body[data-outcome="win"] .ship-caption{border-bottom:1px solid #52685f66;color:#
 
 /* Voyage codes are editable without rerendering the ship. */
 .voyage-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.voyage-actions button{min-height:44px;padding:8px 12px;font-size:12px}.voyage-help,.seed-message,.resume-note{font-size:12px;line-height:1.5;color:#a8bec0;margin:10px 0}.seed-message:empty{display:none}.seed-message{color:#a1e0c5}.resume-note .text-button{display:block;min-height:44px}.shared-voyage-notice{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:1260px;margin:12px auto;padding:12px 24px;background:#102a2e;border:1px solid #31575b;font-size:13px}.analytics-choice{display:grid!important;grid-template-columns:18px 1fr;gap:5px 9px;align-items:center;text-transform:none!important;letter-spacing:0!important;font-size:12px!important;line-height:1.5;margin:12px 0!important;cursor:pointer}.analytics-choice input{width:18px!important;height:18px;margin:0!important;accent-color:#96d9bd}.analytics-choice small{grid-column:2;color:#a8bec0;font-size:11px;line-height:1.5}.playtest-dialog #share-voyage-link{width:100%;min-height:44px;background:#09181d;color:#c1e6dc;border:1px solid #49676c;padding:10px}.playtest-bar{flex-wrap:wrap}.playtest-bar .text-button{min-height:44px}@media(max-width:760px){.shared-voyage-notice{margin:8px 12px;padding:12px;flex-direction:column;align-items:stretch}.voyage-actions>.secondary{flex:1}.voyage-actions>.text-button{flex-basis:100%;text-align:left}.playtest-bar{gap:8px;font-size:9px;padding-left:16px;padding-right:16px}.playtest-bar>span{flex-basis:100%}.playtest-bar>.text-button{font-size:12px}}
+
+/* Illustrated mobile departure, V7.1 */
+.welcome-art{display:none}.welcome-story>.eyebrow{display:block;margin-bottom:24px}.welcome-story .intro{margin-bottom:0}
+@media(max-width:760px){
+ .welcome{margin-top:0}.welcome-intro{position:relative;isolation:isolate;min-height:338px;padding-top:174px;margin-bottom:0}
+ .welcome-art{display:block;position:absolute;z-index:-1;top:0;left:-18px;width:calc(100% + 36px);height:370px;max-width:none;object-fit:cover;object-position:57% top;mask-image:linear-gradient(#000 68%,transparent 100%)}
+ .welcome-story{position:relative;padding:0 0 12px}.welcome-story>.eyebrow{font-size:8px;margin-bottom:11px;letter-spacing:1.6px;text-shadow:0 1px 8px #071219}
+ .welcome-decision .welcome-story h2{font-size:37px;line-height:1.02;letter-spacing:-1.5px;text-shadow:0 2px 20px #071219}
+ .welcome-decision .welcome-story .intro{font-size:12px;line-height:1.55;margin-top:12px;max-width:275px;color:#cee0d8}
+ .welcome .voyage-facts{margin:8px 0 15px;gap:22px;font-size:9px}.welcome .voyage-facts b{font-size:17px;margin-right:4px}
+ .welcome .voyage-help{font-size:10px;line-height:1.55;margin-bottom:0}.welcome .guide-choice{margin-top:8px!important}
+}

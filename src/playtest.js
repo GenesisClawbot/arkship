@@ -1,7 +1,7 @@
 import { validEnvelope } from './persistence.js';
 import { esc } from './icons.js';
 
-export const BUILD='0.7.0-playtest.1';
+export const BUILD='0.7.1-playtest.1';
 
 export function createPlaytestReport(snapshot,context={}) {
   const save={version:2,run:snapshot.run,archive:snapshot.archive,settings:snapshot.settings};
