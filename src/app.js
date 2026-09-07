@@ -9,6 +9,8 @@ import { flightPlan } from './crossing-views.js';
 import { playtestControls, createPlaytestReport, BUILD } from './playtest.js';
 import { getVisualLinks } from './ecology.js';
 import { selectedRouteForecast } from './departure-views.js';
+import { INTRO_VOYAGE, VOYAGE_RULESET, freshVoyageCode, normaliseVoyageCode, voyageLink, readVoyageLink } from './voyage.js';
+import { createAnalytics } from './analytics.js';
 
 let storage;
 try { storage = window.localStorage; } catch { storage = null; }
@@ -18,8 +20,10 @@ let state = snapshot.run;
 const preview = createRun('PALE-BLUE-7');
 const audio = createAudio();
 const preferences=createPreferences(storage);
+const analytics=createAnalytics({enabled:preferences.get().analytics});
 audio.set(snapshot.settings.sound,preferences.get());
-const ui = { page:state?'game':'welcome', selected:null, storedInspection:null, placing:null, moving:null, gridFocus:6, jumping:false, mutationOpen:false, causesOpen:false, seed:'PALE-BLUE-7', confirmNew:false, confirmEvac:false, reclaimTarget:null, routePreview:null, finalDeparture:false, seedKeys:[], bankKeys:[], notice:'' };
+let sharedVoyage=readVoyageLink(location.href,BUILD);
+const ui = { page:state?'game':'welcome', selected:null, storedInspection:null, placing:null, moving:null, gridFocus:6, jumping:false, mutationOpen:false, causesOpen:false, seed:sharedVoyage.code||(!state&&!preferences.get().guideDone?INTRO_VOYAGE:freshVoyageCode()), seedMessage:sharedVoyage.notice, sharedCode:state?sharedVoyage.code:null, confirmNew:false, confirmEvac:false, reclaimTarget:null, routePreview:null, finalDeparture:false, seedKeys:[], bankKeys:[], notice:state?sharedVoyage.notice:'' };
 Object.assign(ui,{preferences:preferences.get(),guide:preferences.get().guideRun===state?.runId,guideChoice:!preferences.get().guideDone,soundOpen:false});
 const app = document.querySelector('#app');
 let noticeTimer, jumpTimer, currentForecast;
@@ -75,8 +79,9 @@ function render(focus, phaseChanged=false) {
     const step=guideStep(state,ui);
     body=`${pressures(state,forecast)}<main class="layout game-layout phase-${state.phase} ${ui.guide?'guided':''}">${ship(state,ui,cellEvidence)}<section class="decision" id="decision" tabindex="-1" aria-label="Current decision">${guideMarkup(step)}${panel}</section></main><footer class="game-footer"><span>VOYAGE ${esc(state.seed)}<span class="desktop-only"> / ARK—07</span></span><span>${snapshot.available===false?'UNSAVED · STORAGE UNAVAILABLE':'VOYAGE SAVED ON THIS DEVICE'}</span>${state.phase!=='ended'?`<button type="button" data-action="restart" class="text-button" data-focus="restart">New voyage</button>`:''}</footer>`;
   }
+  if(ui.sharedCode&&ui.page!=='welcome')body=`<aside class="shared-voyage-notice"><span>A shared voyage is ready. Your current voyage is still saved.</span><button type="button" class="secondary" data-action="open-shared" ${state?.banking?.status==='pending'?'disabled':''}>${state?.banking?.status==='pending'?'Finish banking to preview':'Preview shared voyage'}</button></aside>${body}`;
   const toast=ui.notice || state?.notice || snapshot.notice;
-  app.innerHTML=`${header(current,ui,snapshot)}${body}${playtestControls(state,ui.playtestOpen)}${toast?`<div class="toast" role="status">${icon('info')}<span>${esc(toast)}</span></div>`:''}${ui.confirmNew?`<div class="restart-banner"><span>Abandon this voyage? Your archive stays.</span><div><button type="button" class="secondary" data-action="cancel-new">Keep playing</button><button type="button" class="secondary" data-action="confirm-new">Abandon voyage</button></div></div>`:''}${ui.confirmEvac?`<div class="restart-banner evacuation-banner"><span>Evacuate to the beacon? Your draft is discarded. You may rescue one retained strain; the ark is abandoned.</span><div><button type="button" class="secondary" data-action="cancel-evac">Keep playing</button><button type="button" class="secondary" data-action="confirm-evac">Evacuate now</button></div></div>`:''}`;
+  app.innerHTML=`${header(current,ui,snapshot)}${body}${playtestControls(state,ui.playtestOpen,{shareLink:ui.shareLink,analytics:ui.preferences.analytics})}${toast?`<div class="toast" role="status">${icon('info')}<span>${esc(toast)}</span></div>`:''}${ui.confirmNew?`<div class="restart-banner"><span>Abandon this voyage? Your archive stays.</span><div><button type="button" class="secondary" data-action="cancel-new">Keep playing</button><button type="button" class="secondary" data-action="confirm-new">Abandon voyage</button></div></div>`:''}${ui.confirmEvac?`<div class="restart-banner evacuation-banner"><span>Evacuate to the beacon? Your draft is discarded. You may rescue one retained strain; the ark is abandoned.</span><div><button type="button" class="secondary" data-action="cancel-evac">Keep playing</button><button type="button" class="secondary" data-action="confirm-evac">Evacuate now</button></div></div>`:''}`;
   const playtestDialog=app.querySelector('.playtest-dialog');
   if(playtestDialog)playtestDialog.showModal();
   document.body.dataset.phase=ui.page==='game'?state.phase:ui.page;
@@ -127,6 +132,7 @@ function transition(action,focus,after) {
   }
   snapshot=persistence.saveRun(state);
   if(snapshot.run) state=snapshot.run;
+  analytics.transition(previous,state,action);
   after?.();
   if(state.turn>previous.turn) {
     const outcomeCue=state.phase==='ended'?(state.outcome==='win'?'arrival':state.outcome==='evacuation'?'evacuation':'failure'):state.lastReport?.events?.some(e=>e.type==='pressure')?'alert':state.lastReport?.events?.some(e=>e.type==='mutation')?'mutation':null;
@@ -190,22 +196,50 @@ function gridKeydown(e) {
   app.querySelector(`[data-index="${target}"]`)?.focus();
 }
 
+function setLaunchCode(code,message='') {
+ ui.seed=code;ui.seedMessage=message;
+ const input=app.querySelector('#seed');if(input)input.value=code;
+ const chart=app.querySelector('.launch-plan'),valid=normaliseVoyageCode(code);
+ if(chart)chart.innerHTML=valid?flightPlan(createRun(valid,{},[],{ruleset:VOYAGE_RULESET})):'<p>Enter a voyage code to see its flight plan.</p>';
+ const status=app.querySelector('#seed-message');if(status)status.textContent=message;
+}
+
+function prepareVoyage(code=freshVoyageCode()) {
+ if(state?.banking?.status==='pending')return;
+ ui.seed=code;ui.seedKeys=[];ui.seedMessage='';ui.sharedCode=null;ui.confirmNew=false;ui.page='welcome';clearSelection();render(undefined,true);
+}
+
+window.addEventListener('hashchange',()=>{
+ if(!new URLSearchParams(location.hash.slice(1)).has('voyage'))return;
+ sharedVoyage=readVoyageLink(location.href,BUILD);
+ if(ui.page==='welcome'){setLaunchCode(sharedVoyage.code||ui.seed,sharedVoyage.notice);return;}
+ ui.sharedCode=sharedVoyage.code;ui.seedMessage=sharedVoyage.notice;
+ if(!sharedVoyage.code)ui.notice=sharedVoyage.notice;
+ render();
+});
+
 app.addEventListener('input',e=>{
  if(e.target.id==='seed'){
-  ui.seed=e.target.value;
-  const chart=app.querySelector('.launch-plan');
-  if(chart)chart.innerHTML=flightPlan(createRun(ui.seed.trim()||'PALE-BLUE-7',{},[],{ruleset:5}));
+  setLaunchCode(e.target.value);
  }
  if(e.target.name==='guide')ui.guideChoice=e.target.checked;
+ if(e.target.name==='analytics'){
+  ui.preferences=preferences.set({analytics:e.target.checked});
+  analytics.setEnabled(ui.preferences.analytics);
+ }
 });
 app.addEventListener('submit',e=>{
  if(e.target.id!=='start-form') return;
  e.preventDefault();const form=new FormData(e.target),previousId=state?.runId;
- snapshot=persistence.startRun(String(form.get('seed')||'').trim().slice(0,40)||'PALE-BLUE-7',ui.seedKeys,{ruleset:5});
+ const code=normaliseVoyageCode(form.get('seed'));
+ if(!code){setLaunchCode(ui.seed,'Enter a voyage code of 1–40 characters.');app.querySelector('#seed')?.focus();return;}
+ snapshot=persistence.startRun(code,ui.seedKeys,{ruleset:VOYAGE_RULESET});
  state=snapshot.run;
  if(!state||state.runId===previousId){ui.notice=snapshot.notice||'The voyage could not be started.';render();return;}
- clearSelection();ui.page='game';ui.confirmNew=false;ui.routePreview=null;ui.bankKeys=[];
+ clearSelection();ui.page='game';ui.confirmNew=false;ui.routePreview=null;ui.bankKeys=[];ui.sharedCode=null;
+ if(new URLSearchParams(location.hash.slice(1)).has('voyage'))history.replaceState(null,'',location.pathname+location.search);
  ui.guide=form.has('guide');ui.guideReplay=false;ui.preferences=preferences.set({guideRun:ui.guide?state.runId:null});
+ analytics.startVoyage(state,snapshot.archive);
  audio.set(snapshot.settings.sound,ui.preferences);render(undefined,true);announce('Voyage started. Preview one of three routes.');
 });
 
@@ -214,15 +248,29 @@ app.addEventListener('click',e=>{
  hideHelp();
  const b=e.target.closest('[data-action]');if(!b||b.disabled)return;
  const a=b.dataset.action;e.preventDefault();
- if(a==='playtest'){ui.playtestOpen=true;render();return;}
- if(a==='close-playtest'){ui.playtestOpen=false;render('playtest');return;}
+ if(a==='fresh-code'){setLaunchCode(freshVoyageCode(),'Fresh opportunities charted. Open the flight plan to preview the crossings.');announce(ui.seedMessage);return;}
+ if(a==='replay-code'){if(state)setLaunchCode(state.seed,'Previous voyage code restored. Inherited strains and your choices can change the outcome.');return;}
+ if(a==='open-shared'){const code=ui.sharedCode;prepareVoyage(code);setLaunchCode(code,sharedVoyage.notice);return;}
+ if(a==='copy-voyage'){
+   try {
+     const code=ui.page==='welcome'?ui.seed:state?.seed;
+     const link=voyageLink(location.href,code,BUILD,ui.page==='welcome'?VOYAGE_RULESET:state?.ruleset??2);
+     const returnFocus=b.dataset.focus||'copy-voyage';
+     const fallback=()=>{ui.playtestReturn=returnFocus;ui.shareLink=link;ui.playtestOpen=true;render();const input=app.querySelector('#share-voyage-link');input?.focus();input?.select();announce('Select and copy the voyage link.');};
+     if(navigator.clipboard?.writeText)navigator.clipboard.writeText(link).then(()=>{ui.notice='Voyage link copied. Your save and genomes stay private.';render(returnFocus);announce(ui.notice);}).catch(fallback);
+     else fallback();
+   }catch(error){announce(error.message);}
+   return;
+ }
+ if(a==='playtest'){ui.playtestReturn='playtest';ui.shareLink=null;ui.playtestOpen=true;render();return;}
+ if(a==='close-playtest'){ui.playtestOpen=false;render(ui.playtestReturn||'playtest');return;}
  if(a==='download-report'){
    try {
      const report=createPlaytestReport(snapshot,{width:innerWidth,height:innerHeight,userAgent:navigator.userAgent,language:navigator.language});
      const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'}));
      const link=document.createElement('a');link.href=url;link.download=`arkship-${BUILD}-${(state?.seed||'welcome').replace(/[^a-z0-9_-]/gi,'-')}.json`;
      document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
-     announce('Voyage report downloaded. Nothing was sent automatically.');
+     announce('Voyage report downloaded. Your save was not uploaded.');
    } catch(error) {announce(error.message);}
    return;
  }
@@ -240,10 +288,10 @@ app.addEventListener('click',e=>{
  }
  if(a==='archive'){audio.cue('tick');ui.page='archive';clearSelection();render(undefined,true);return;}
  if(a==='back'||a==='home'){audio.cue('tick');ui.page=state?'game':'welcome';ui.confirmNew=false;render(undefined,true);return;}
- if(a==='new'){if(state?.banking?.status==='pending')return;ui.seedKeys=[];ui.page='welcome';clearSelection();render(undefined,true);return;}
+ if(a==='new'){prepareVoyage();return;}
  if(a==='restart'){ui.confirmNew=true;render('restart');return;}
  if(a==='cancel-new'){ui.confirmNew=false;render('restart');return;}
- if(a==='confirm-new'){ui.confirmNew=false;ui.page='welcome';clearSelection();render(undefined,true);return;}
+ if(a==='confirm-new'){prepareVoyage(ui.sharedCode||freshVoyageCode());return;}
  if(a==='route'){if(ui.routePreview!==b.dataset.route)ui.finalDeparture=false;ui.routePreview=b.dataset.route;audio.cue('tick');render(`route-${b.dataset.route}`);announce('Route preview updated for this ship.');return;}
  if(a==='preview-final'){ui.finalDeparture=!ui.finalDeparture;audio.cue('tick');render('preview-final');announce(ui.finalDeparture?'Forecast includes refusing the specimen and the final jump.':'Contact forecast restored.');return;}
  if(a==='depart-final'){if(ui.guide)return;return transition({type:'DEPART_FINAL',routeId:b.dataset.route});}
@@ -307,7 +355,7 @@ app.addEventListener('pointerout',e=>{if(!helpPinned&&helpSource&&!helpSource.co
 app.addEventListener('focusin',e=>{const target=e.target.closest('[data-help]');if(target)showHelp(target);});
 app.addEventListener('focusout',()=>{if(!helpPinned)hideHelp();});
 app.addEventListener('keydown',e=>{if(['Enter',' '].includes(e.key)&&e.target.matches('[data-help]:not(button)')){e.preventDefault();showHelp(e.target,true);}});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(ui.playtestOpen){e.preventDefault();ui.playtestOpen=false;render('playtest');return;}if(!help.hidden){hideHelp();return;}if(ui.soundOpen){ui.soundOpen=false;render('sound-settings');return;}if(ui.page==='archive'){ui.page=state?'game':'welcome';render('archive',true);}else if(ui.confirmEvac){ui.confirmEvac=false;render('evacuate');}else if(ui.confirmNew){ui.confirmNew=false;render('restart');}else{clearSelection();render(`bay-${ui.gridFocus}`);announce('Selection cleared.');}}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(ui.playtestOpen){e.preventDefault();ui.playtestOpen=false;render(ui.playtestReturn||'playtest');return;}if(!help.hidden){hideHelp();return;}if(ui.soundOpen){ui.soundOpen=false;render('sound-settings');return;}if(ui.page==='archive'){ui.page=state?'game':'welcome';render('archive',true);}else if(ui.confirmEvac){ui.confirmEvac=false;render('evacuate');}else if(ui.confirmNew){ui.confirmNew=false;render('restart');}else{clearSelection();render(`bay-${ui.gridFocus}`);announce('Selection cleared.');}}});
 window.addEventListener('scroll',hideHelp,{passive:true});
 document.addEventListener('visibilitychange',()=>document.hidden?audio.pause():audio.resume());
 // A saved opt-in may initially meet the browser's autoplay block. Retry loops

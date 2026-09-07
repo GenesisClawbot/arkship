@@ -8,6 +8,7 @@ import { mutationComparison, offerForRoute, rateText, reportSummary, plannedRepa
 import { crossingNotice, flightPlan, portExchangeMarkup, trendMarkup } from './crossing-views.js';
 import { peopleDemand, rescueOffer, rescueForecastNote, rescueEncounter, peopleEnding } from './rescue-views.js';
 import { finalDepartureOffer, selectedRouteForecast, finalDepartureControls } from './departure-views.js';
+import { INTRO_VOYAGE, VOYAGE_RULESET, normaliseVoyageCode } from './voyage.js';
 
 const labels = {power:'Power', oxygen:'Oxygen', biomass:'Food', heat:'Heat', hull:'Hull'};
 const allResources = ['power','oxygen','biomass','heat','hull'];
@@ -80,7 +81,17 @@ function deckToolbar(state,ui,forecast) {
 }
 
 export function welcome(state,ui,snapshot) {
- return `<main class="welcome layout">${ship(state,{...ui,selected:null,placing:null},null,true)}<section class="decision welcome-decision" id="decision" tabindex="-1"><span class="eyebrow mint">DESTINATION / EOS REFUGE</span><h2>Carry life<br>into the unknown.</h2><p class="intro">Your ship is the ecosystem.<br>Graft strange life. Keep it alive.<br>Reach the refuge. Carry more people when your ark can support them.</p><div class="voyage-facts"><span><b>9</b> jumps</span><span><b>6</b> people at launch</span><span><b>10</b> open bays</span></div><form id="start-form"><label for="seed">Voyage code <span>Same code. Same opportunities.</span></label><input id="seed" name="seed" maxlength="40" value="${esc(ui.seed||'PALE-BLUE-7')}" autocomplete="off" spellcheck="false" required>${seedChooser(snapshot.archive,ui)}<label class="guide-choice"><input type="checkbox" name="guide" ${ui.guideChoice?'checked':''}> Guide my first two jumps</label><button class="primary launch" type="submit">Begin voyage ${icon('arrow')}</button></form><p class="save-note">${icon('check')} ${snapshot.available?'Your voyage and lineage save on this device.':'Storage unavailable. This voyage will be unsaved.'}</p><details class="launch-chart"><summary>Crossings & lifeboats · View flight plan</summary><div class="launch-plan">${flightPlan(createRun(ui.seed?.trim()||'PALE-BLUE-7',{},[],{ruleset:5}))}</div></details><p class="welcome-foot">WHAT WILL YOUR SHIP BECOME?</p></section></main>`;
+ const code=ui.seed??INTRO_VOYAGE,valid=normaliseVoyageCode(code);
+ return `<main class="welcome layout">${ship(state,{...ui,selected:null,placing:null},null,true)}<section class="decision welcome-decision" id="decision" tabindex="-1"><span class="eyebrow mint">DESTINATION / EOS REFUGE</span><h2>Carry life<br>into the unknown.</h2><p class="intro">Your ship is the ecosystem.<br>Graft strange life. Keep it alive.<br>Reach the refuge. Carry more people when your ark can support them.</p><div class="voyage-facts"><span><b>9</b> jumps</span><span><b>6</b> people at launch</span><span><b>10</b> open bays</span></div><form id="start-form">
+ <label for="seed">Voyage code <span>Chart a different journey.</span></label>
+ <input id="seed" name="seed" maxlength="40" value="${esc(code)}" autocomplete="off" spellcheck="false" aria-describedby="voyage-help seed-message" required>
+ <div class="voyage-actions"><button type="button" class="secondary" data-action="fresh-code" data-focus="fresh-code">New code</button><button type="button" class="secondary" data-action="copy-voyage" data-focus="copy-launch">Copy voyage link</button>${snapshot.run?'<button type="button" class="text-button" data-action="replay-code">Replay previous code</button>':''}</div>
+ <p class="voyage-help" id="voyage-help">Codes change encounters and crossings. Your starting hull stays the same; inherited strains and your choices shape the outcome.</p>
+ <p class="seed-message" id="seed-message" role="status">${esc(ui.seedMessage||'')}</p>
+ ${seedChooser(snapshot.archive,ui)}<label class="guide-choice"><input type="checkbox" name="guide" ${ui.guideChoice?'checked':''}> Guide my first two jumps</label>
+ <label class="analytics-choice"><input type="checkbox" name="analytics" aria-label="Share anonymous playtest stats" ${ui.preferences.analytics?'checked':''}> Share anonymous playtest stats <small>Optional · Visits and game milestones only. Your save and voyage code stay private.</small></label>
+ ${snapshot.run&&snapshot.run.phase!=='ended'?'<p class="resume-note">Beginning this voyage replaces your current run. Your lineage stays.<button type="button" class="text-button" data-action="back">Resume saved voyage</button></p>':''}
+ <button class="primary launch" type="submit">Begin voyage ${icon('arrow')}</button></form><p class="save-note">${icon('check')} ${snapshot.available?'Your voyage and lineage save on this device.':'Storage unavailable. This voyage will be unsaved.'}</p><details class="launch-chart"><summary>Crossings & lifeboats · View flight plan</summary><div class="launch-plan">${valid?flightPlan(createRun(valid,{},[],{ruleset:VOYAGE_RULESET})):'<p>Enter a voyage code to see its flight plan.</p>'}</div></details><p class="welcome-foot">WHAT WILL YOUR SHIP BECOME?</p></section></main>`;
 }
 
 function hazardText(route) {

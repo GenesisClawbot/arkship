@@ -94,14 +94,14 @@ export function offerForRoute(state, route) {
 
 const KEY='arkship.preferences.v1';
 export function createPreferences(storage) {
-  let value={version:1,music:true,effects:true,guideDone:false,guideRun:null};
+  let value={version:1,music:true,effects:true,guideDone:false,guideRun:null,analytics:false};
   try {
     const saved=JSON.parse(storage?.getItem(KEY)||'null');
-    if(saved?.version===1) for(const key of ['music','effects','guideDone']) if(typeof saved[key]==='boolean') value[key]=saved[key];
+    if(saved?.version===1) for(const key of ['music','effects','guideDone','analytics']) if(typeof saved[key]==='boolean') value[key]=saved[key];
     if(typeof saved?.guideRun==='string'&&saved.guideRun.length<=100)value.guideRun=saved.guideRun;
   } catch {}
   return { get:()=>({...value}), set(patch) {
-    for(const key of ['music','effects','guideDone'])if(typeof patch[key]==='boolean')value[key]=patch[key];
+    for(const key of ['music','effects','guideDone','analytics'])if(typeof patch[key]==='boolean')value[key]=patch[key];
     if(patch.guideRun===null||typeof patch.guideRun==='string'&&patch.guideRun.length<=100)value.guideRun=patch.guideRun;
     try{storage?.setItem(KEY,JSON.stringify(value));}catch{}
     return {...value};
