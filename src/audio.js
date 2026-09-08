@@ -15,10 +15,10 @@ export function createAudio(AudioCtor=globalThis.Audio) {
     const track=new AudioCtor(path);track.volume=volume;track.loop=loop;track.preload='none';return track;
   };
   const beds={
-    discovery:make('assets/audio-v53/music-loop.mp3',.27,true),
-    living:make('assets/audio-v53/living-loop.mp3',0,true),
-    danger:make('assets/audio-v53/danger-loop.mp3',0,true),
-    refuge:make('assets/audio-v53/refuge-loop.mp3',0,true),
+    discovery:make('assets/audio-v8/music-loop.mp3',.27,true),
+    living:make('assets/audio-v8/living-loop.mp3',0,true),
+    danger:make('assets/audio-v8/danger-loop.mp3',0,true),
+    refuge:make('assets/audio-v8/refuge-loop.mp3',0,true),
   };
   const ambience=make('assets/ambience.mp3',.09,true);
   const cues={
