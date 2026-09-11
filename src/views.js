@@ -9,6 +9,7 @@ import { crossingNotice, flightPlan, portExchangeMarkup, trendMarkup } from './c
 import { peopleDemand, rescueOffer, rescueForecastNote, rescueEncounter, peopleEnding } from './rescue-views.js';
 import { finalDepartureOffer, selectedRouteForecast, finalDepartureControls } from './departure-views.js';
 import { INTRO_VOYAGE, VOYAGE_RULESET, normaliseVoyageCode } from './voyage.js';
+import { mobileStoreLinks } from './playtest.js';
 
 const labels = {power:'Power', oxygen:'Oxygen', biomass:'Food', heat:'Heat', hull:'Hull'};
 const allResources = ['power','oxygen','biomass','heat','hull'];
@@ -91,7 +92,7 @@ export function welcome(state,ui,snapshot) {
  ${seedChooser(snapshot.archive,ui)}<label class="guide-choice"><input type="checkbox" name="guide" ${ui.guideChoice?'checked':''}> Guide my first two jumps</label>
  <label class="analytics-choice"><input type="checkbox" name="analytics" aria-label="Share anonymous playtest stats" ${ui.preferences.analytics?'checked':''}> Share anonymous playtest stats <small>Optional · Visits and game milestones only. Your save and voyage code stay private.</small></label>
  ${snapshot.run&&snapshot.run.phase!=='ended'?'<p class="resume-note">Beginning this voyage replaces your current run. Your lineage stays.<button type="button" class="text-button" data-action="back">Resume saved voyage</button></p>':''}
- <button class="primary launch" type="submit">Begin voyage ${icon('arrow')}</button></form><p class="save-note">${icon('check')} ${snapshot.available?'Your voyage and lineage save on this device.':'Storage unavailable. This voyage will be unsaved.'}</p><a class="text-button" href="android-playtest.html">Help test the Android app</a><details class="launch-chart"><summary>Crossings & lifeboats · View flight plan</summary><div class="launch-plan">${valid?flightPlan(createRun(valid,{},[],{ruleset:VOYAGE_RULESET})):'<p>Enter a voyage code to see its flight plan.</p>'}</div></details><p class="welcome-foot">WHAT WILL YOUR SHIP BECOME?</p></section></main>`;
+ <button class="primary launch" type="submit">Begin voyage ${icon('arrow')}</button></form><p class="save-note">${icon('check')} ${snapshot.available?'Your voyage and lineage save on this device.':'Storage unavailable. This voyage will be unsaved.'}</p>${ui.isNative?'':`<nav class="support-links" aria-label="Play on mobile">${mobileStoreLinks()}</nav>`}<details class="launch-chart"><summary>Crossings & lifeboats · View flight plan</summary><div class="launch-plan">${valid?flightPlan(createRun(valid,{},[],{ruleset:VOYAGE_RULESET})):'<p>Enter a voyage code to see its flight plan.</p>'}</div></details><p class="welcome-foot">WHAT WILL YOUR SHIP BECOME?</p></section></main>`;
 }
 
 function hazardText(route) {
